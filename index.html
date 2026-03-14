@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Med AI</title>
+    <meta http-equiv="Content-Security-Policy" content="media-src 'self' https:;">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-switch {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .mode-button {
+            flex: 1;
+            min-width: 140px;
+            padding: 12px 16px;
+            border-radius: 999px;
+            border: 2px solid rgba(118, 75, 162, 0.3);
+            background: rgba(255, 255, 255, 0.6);
+            color: #5a3f79;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-button:not(.active):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(118, 75, 162, 0.15);
+        }
+
+        .mode-button.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 12px 30px rgba(118, 75, 162, 0.25);
+        }
+
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .record-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+        }
+
+        .record-button.recording {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            animation: pulse 2s infinite;
+        }
+
+        .recording-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .status {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status.recording {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            border: 2px solid #28a745;
+        }
+
+        .timer {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+
+        .chunk-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card h4 {
+            color: #495057;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .info-card .value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .transcript-output {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: right;
+            direction: rtl;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .transcript-output .placeholder {
+            opacity: 0.6;
+            font-size: 0.95em;
+            direction: rtl;
+        }
+
+        .transcript-final {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 12px;
+        }
+
+        .transcript-chunks {
+            display: none;
+            /* display: flex; */
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chunk-line {
+            background: rgba(102, 126, 234, 0.08);
+            border-radius: 8px;
+            padding: 12px;
+            border-right: 4px solid #667eea;
+            direction: rtl;
+        }
+
+        .chunk-meta {
+            font-size: 0.85em;
+            color: #666;
+            display: block;
+            margin-bottom: 6px;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .chunk-content {
+            font-size: 1em;
+            color: #2d3436;
+        }
+
+        .upload-section {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            text-align: left;
+        }
+
+        .upload-section h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #444;
+        }
+
+        .upload-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .upload-button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(68, 160, 141, 0.3);
+        }
+
+        .upload-status {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 12px;
+        }
+
+        .upload-status.error {
+            color: #c0392b;
+        }
+
+        .transcription-alert {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            color: #1565c0;
+            display: none;
+        }
+
+        .transcription-alert.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .session-info {
+            background: #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.8em;
+            word-break: break-all;
+            display: none;
+        }
+
+        .session-info.show { display: block; }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Swagger button styles */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .swagger-button {
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            background: linear-gradient(45deg, #222, #444);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .swagger-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+        }
+
+        .swagger-button small {
+            display: block;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <h1 class="title">🎙️ Med AI</h1>
+            <button id="swaggerButton" class="swagger-button" type="button">
+                API Docs
+                <small>/docs</small>
+            </button>
+        </div>
+
+        <!-- NEW: simple login panel -->
+        <div id="authPanel" style="margin-bottom: 15px; text-align: left;">
+            <div id="authStatus" style="font-size: 0.9em; margin-bottom: 8px; color: #c0392b;">
+                Please login to use recording / upload.
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                <input id="authUsername" type="text" placeholder="username (admin / doctor)"
+                       style="padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9em;">
+                <input id="authPassword" type="password" placeholder="password"
+                       style="padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9em;">
+                <button id="authLoginBtn"
+                        style="padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer;
+                               background: linear-gradient(45deg,#667eea,#764ba2); color:#fff; font-size:0.9em;">
+                    Login
+                </button>
+                <button id="authLogoutBtn"
+                        style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; cursor: pointer;
+                               background:#f8f9fa; font-size:0.9em; display:none;">
+                    Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="mode-switch">
+            <button class="mode-button active" data-mode="record">Live Recording</button>
+            <button class="mode-button" data-mode="upload">Upload Audio</button>
+        </div>
+
+        <div id="status" class="status">
+            <div><strong>Ready to Record</strong></div>
+            <div>30-second chunks • Auto-transcription</div>
+        </div>
+
+        <div id="recordingSection" class="recording-section">
+            <button id="recordButton" class="record-button">
+                <span id="buttonText">Start Recording</span>
+            </button>
+
+            <div id="timer" class="timer" style="display: none;">00:00</div>
+        </div>
+
+        <div id="chunkInfo" class="chunk-info" style="display: none;">
+            <div class="info-card">
+                <h4>Chunks Saved</h4>
+                <div id="totalChunks" class="value">0</div>
+            </div>
+            <div class="info-card">
+                <h4>Recording Time</h4>
+                <div id="recordingTime" class="value">00:00</div>
+            </div>
+        </div>
+
+        <div id="uploadSection" class="upload-section hidden">
+            <h3>Transcribe a pre-recorded file</h3>
+            <p style="margin-bottom: 15px; color: #666; font-size: 0.95em;">
+                Select an audio file (MP3, WAV, M4A, FLAC, OGG, WEBM) to send it directly for transcription.
+            </p>
+            <div class="upload-actions">
+                <input type="file" id="fileInput" accept="audio/*">
+                <button id="uploadButton" class="upload-button">Upload &amp; Transcribe</button>
+            </div>
+            <div id="uploadStatus" class="upload-status"></div>
+        </div>
+
+        <div id="transcriptOutput" class="transcript-output">
+            <div class="placeholder">
+                سيتم عرض النص الكامل هنا بمجرد بدء المعالجة الصوتية أو رفع ملف صوتي.
+            </div>
+        </div>
+        
+        <div id="qwenAnalysisSection" class="transcript-output" style="display: none; margin-top: 20px; border: 2px solid #667eea;">
+            <h3 style="color: #667eea; margin-bottom: 15px; text-align: center;">📊 التحليل الطبي بواسطة الذكاء الاصطناعي</h3>
+            <div id="qwenAnalysisContent" style="direction: rtl;">
+                <div class="placeholder">جاري معالجة النص الطبي...</div>
+            </div>
+            <!-- NEW: edit/save controls -->
+            <div id="qwenActions" style="display:flex; gap:10px; justify-content:center; margin-top:12px;">
+                <button id="editMedicalInfoBtn"
+                        style="padding:6px 14px; border-radius:6px; border:1px solid #667eea; background:#fff; cursor:pointer; font-size:0.85em;">
+                    تعديل المعلومات الطبية
+                </button>
+                <button id="saveMedicalInfoBtn"
+                        style="padding:6px 14px; border-radius:6px; border:none; background:linear-gradient(45deg,#4ecdc4,#44a08d); color:#fff; cursor:pointer; font-size:0.85em;"
+                        disabled>
+                    حفظ
+                </button>
+            </div>
+        </div>
+        
+        <div id="transcriptionAlert" class="transcription-alert">
+            <strong>🚀 Pipeline Started!</strong><br>
+            Processing: Transcription → AI Analysis<br>
+            <a href="#" id="transcriptionLink" target="_blank" style="color: #1565c0; font-weight: bold;">
+                → Open Unified Pipeline Monitor
+            </a>
+        </div>
+        
+        <div id="sessionInfo" class="session-info">
+            <strong>Session:</strong> <span id="sessionId"></span>
+        </div>
+        
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+    // --- AUTH + JWT helpers ---
+
+    const CONFIG_URL = 'config/server_config.json';
+    const urlInfo = new URL(window.location.href);
+    const params = urlInfo.searchParams;
+
+    const TOKEN_KEY = 'accessToken';
+    const VOICE_BASE_KEY = 'voiceServerUrl';
+    const TRANS_BASE_KEY = 'transcriptionServerUrl';
+    const QWEN_BASE_KEY = 'qwenServerUrl';
+
+    function getAccessToken() {
+        return localStorage.getItem(TOKEN_KEY) || null;
+    }
+
+    function setAccessToken(token) {
+        if (token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        } else {
+            localStorage.removeItem(TOKEN_KEY);
+        }
+    }
+
+    function authHeaders(extra = {}) {
+        const token = getAccessToken();
+        const headers = { ...extra };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    }
+
+    async function fetchWithAuth(url, options = {}) {
+        const baseHeaders = options.headers || {};
+        const headers = authHeaders(baseHeaders);
+        const finalOptions = { ...options, headers };
+        return fetch(url, finalOptions);
+    }
+
+    const DEFAULT_ROUTES = {
+        voice: {
+            startRecording: '/start-recording',
+            stopRecording: '/stop-recording/{sessionId}',
+            saveChunk: '/save-chunk/{sessionId}',
+            processUpload: '/process-upload'
+        },
+        transcription: {
+            monitorProgress: '/monitor/{sessionId}/progress',
+            startMonitoring: '/start-monitor/{sessionId}',
+            stopMonitoring: '/stop-monitor/{sessionId}',
+            qwenStatus: '/qwen-status/{sessionId}',
+            metrics: '/api/metrics'
+        },
+        qwen: {
+            generate: '/generate',
+            metrics: '/api/metrics'
+        }
+    };
+
+    function normalizeBaseUrl(value) {
+        if (!value) return null;
+        try {
+            const parsed = new URL(value, window.location.origin);
+            let path = parsed.pathname;
+            if (path && path !== '/') {
+                path = path.replace(/\/+$/, '');
+            } else {
+                path = '';
+            }
+            return `${parsed.origin}${path}`;
+        } catch {
+            return null;
+        }
+    }
+
+    function sanitizeServerUrl(value) {
+        if (!value) return null;
+        return normalizeBaseUrl(value);
+    }
+
+    function resolveServer(paramKey, defaultUrl) {
+        const overrideCandidate = params.get(paramKey) || localStorage.getItem(`${paramKey}Url`);
+        const override = sanitizeServerUrl(overrideCandidate);
+        if (override) {
+            localStorage.setItem(`${paramKey}Url`, override);
+            return override;
+        }
+        if (defaultUrl) return defaultUrl;
+        throw new Error(`Missing server base URL for ${paramKey}`);
+    }
+
+    function formatRoute(template, parameters = {}) {
+        if (!template) throw new Error('Route template is not defined.');
+        return template.replace(/\{(\w+)\}/g, (match, key) => {
+            if (!(key in parameters)) {
+                throw new Error(`Missing parameter "${key}" for route template ${template}`);
+            }
+            return encodeURIComponent(parameters[key]);
+        });
+    }
+
+    async function loadServerConfig() {
+        const response = await fetch(CONFIG_URL, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to load server configuration (${response.status})`);
+        }
+        return response.json();
+    }
+
+    function mergeRoutes(configRoutes = {}) {
+        return {
+            voice: { ...DEFAULT_ROUTES.voice, ...(configRoutes.voice || {}) },
+            transcription: { ...DEFAULT_ROUTES.transcription, ...(configRoutes.transcription || {}) },
+            qwen: { ...DEFAULT_ROUTES.qwen, ...(configRoutes.qwen || {}) }
+        };
+    }
+
+    function handleBootstrapError(error) {
+        console.error('Failed to initialize recorder:', error);
+        const statusElement = document.getElementById('status');
+        if (statusElement) {
+            statusElement.classList.remove('recording');
+            statusElement.innerHTML =
+                '<div><strong>Configuration Error</strong></div><div>Unable to load server settings. Contact your administrator.</div>';
+        }
+        const errorBox = document.getElementById('error');
+        if (errorBox) {
+            errorBox.textContent = error?.message || 'Configuration load failed.';
+            errorBox.style.display = 'block';
+        }
+    }
+
+    class VoiceRecorder {
+        constructor(pipelineConfig) {
+            this.mediaRecorder = null;
+            this.audioStream = null;
+            this.recordButton = document.getElementById('recordButton');
+            this.buttonText = document.getElementById('buttonText');
+            this.status = document.getElementById('status');
+            this.timer = document.getElementById('timer');
+            this.transcriptOutput = document.getElementById('transcriptOutput');
+            this.uploadInput = document.getElementById('fileInput');
+            this.uploadButton = document.getElementById('uploadButton');
+            this.uploadStatus = document.getElementById('uploadStatus');
+            this.modeButtons = document.querySelectorAll('.mode-button');
+            this.recordingSection = document.getElementById('recordingSection');
+            this.uploadSection = document.getElementById('uploadSection');
+
+            this.isRecording = false;
+            this.isUploading = false;
+            this.sessionId = null;
+            this.totalChunks = 0;
+            this.startTime = null;
+            this.timerInterval = null;
+            this.chunkInterval = null;
+            this.progressInterval = null;
+
+            this.voiceServerUrl = pipelineConfig.servers.voice;
+            this.transcriptionServerUrl = pipelineConfig.servers.transcription;
+            this.qwenServerUrl = pipelineConfig.servers.qwen;
+            this.voiceRoutes = pipelineConfig.routes.voice;
+            this.transcriptionRoutes = pipelineConfig.routes.transcription;
+            this.qwenRoutes = pipelineConfig.routes.qwen;
+
+            this.activeMode = 'record';
+            this.qwenEditMode = false;
+
+            this.updateAuthDependentUI();
+
+            this.modeButtons.forEach(button => {
+                button.addEventListener('click', () => this.setMode(button.dataset.mode));
+            });
+
+            this.recordButton.addEventListener('click', () => this.toggleRecording());
+            if (this.uploadButton) {
+                this.uploadButton.addEventListener('click', () => this.handleFileUpload());
+            }
+
+            this.setMode('record', { isInit: true });
+        }
+
+        isAuthenticated() {
+            return !!getAccessToken();
+        }
+
+        updateAuthDependentUI() {
+            const authed = this.isAuthenticated();
+            const authStatus = document.getElementById('authStatus');
+            const loginBtn = document.getElementById('authLoginBtn');
+            const logoutBtn = document.getElementById('authLogoutBtn');
+
+            if (authStatus) {
+                authStatus.style.color = authed ? '#28a745' : '#c0392b';
+                authStatus.textContent = authed
+                    ? 'Logged in. You can record and upload audio.'
+                    : 'Please login to use recording / upload.';
+            }
+            if (loginBtn) loginBtn.style.display = authed ? 'none' : 'inline-block';
+            if (logoutBtn) logoutBtn.style.display = authed ? 'inline-block' : 'none';
+
+            if (this.recordButton) this.recordButton.disabled = !authed;
+            if (this.uploadButton) this.uploadButton.disabled = !authed;
+        }
+
+        handleAuthError() {
+            setAccessToken(null);
+            this.updateAuthDependentUI();
+            this.showError('Session expired or unauthorized. Please login again.');
+        }
+
+        setMode(mode, { isInit = false } = {}) {
+            if (!isInit && mode === this.activeMode) return;
+            if (mode === 'upload' && this.isRecording) {
+                this.showError('Stop the live recording before switching to upload mode.');
+                return;
+            }
+
+            this.activeMode = mode;
+            this.modeButtons.forEach(button => {
+                const isActive = button.dataset.mode === mode;
+                button.classList.toggle('active', isActive);
+            });
+
+            if (this.recordingSection) {
+                this.recordingSection.classList.toggle('hidden', mode !== 'record');
+            }
+            if (this.uploadSection) {
+                this.uploadSection.classList.toggle('hidden', mode !== 'upload');
+            }
+            if (this.recordButton) {
+                this.recordButton.disabled = mode !== 'record' || !this.isAuthenticated();
+            }
+
+            if (!this.isRecording && !this.isUploading && !this.progressInterval) {
+                if (mode === 'record') {
+                    this.status.innerHTML =
+                        '<div><strong>Ready to Record</strong></div><div>30-second chunks • Auto-transcription</div>';
+                    this.status.classList.remove('recording');
+                } else {
+                    this.status.innerHTML =
+                        '<div><strong>Upload Mode</strong></div><div>Select a file to generate a transcript.</div>';
+                    this.status.classList.remove('recording');
+                    if (this.timer) this.timer.style.display = 'none';
+                }
+            }
+        }
+
+        async toggleRecording() {
+            if (this.isRecording) {
+                await this.stopRecording();
+            } else {
+                await this.startRecording();
+            }
+        }
+
+        async startRecording() {
+            if (!this.isAuthenticated()) {
+                this.showError('You must login before recording.');
+                return;
+            }
+            try {
+                // reset analysis UI for a new session
+                this.setQwenEditMode(false);
+                const qwenSection = document.getElementById('qwenAnalysisSection');
+                const qwenContent = document.getElementById('qwenAnalysisContent');
+                if (qwenContent) {
+                    qwenContent.innerHTML = '<div class="placeholder">جاري معالجة النص الطبي...</div>';
+                }
+                if (qwenSection) qwenSection.style.display = 'none';
+
+                this.stopProgressPolling();
+                this.clearProgressOutput();
+                this.setUploadStatus('');
+
+                this.audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+
+                const route = this.voiceRoutes.startRecording;
+                const response = await fetchWithAuth(`${this.voiceServerUrl}${route}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (response.status === 401) {
+                    this.handleAuthError();
+                    return;
+                }
+                if (!response.ok) throw new Error('Failed to start recording session');
+
+                const data = await response.json();
+                this.sessionId = data.session_id;
+
+                this.mediaRecorder = new MediaRecorder(this.audioStream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                let audioChunks = [];
+
+                this.mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                this.mediaRecorder.onstop = async () => {
+                    if (audioChunks.length > 0 && this.sessionId) {
+                        await this.saveChunk(new Blob(audioChunks, { type: 'audio/webm' }));
+                        audioChunks = [];
+                    }
+                };
+
+                this.mediaRecorder.start();
+                this.isRecording = true;
+                this.startTime = Date.now();
+
+                this.updateUI();
+                this.startTimers();
+
+                this.chunkInterval = setInterval(() => this.createChunk(), 30000);
+            } catch (err) {
+                this.showError('Error starting recording: ' + err.message);
+            }
+        }
+
+        async stopRecording() {
+            try {
+                if (this.chunkInterval) {
+                    clearInterval(this.chunkInterval);
+                    this.chunkInterval = null;
+                }
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                }
+
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+
+                if (this.audioStream) {
+                    this.audioStream.getTracks().forEach(track => track.stop());
+                }
+
+                if (this.sessionId) {
+                    const route = formatRoute(this.voiceRoutes.stopRecording, { sessionId: this.sessionId });
+                    await fetchWithAuth(`${this.voiceServerUrl}${route}`, { method: 'POST' });
+                }
+
+                this.isRecording = false;
+                this.updateUI();
+                this.status.innerHTML =
+                    '<div><strong>Processing transcription</strong></div><div>Awaiting transcribed chunks...</div>';
+                this.startProgressPolling();
+            } catch (err) {
+                this.showError('Error stopping recording: ' + err.message);
+            }
+        }
+
+        createChunk() {
+            if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                this.mediaRecorder.stop();
+
+                setTimeout(() => {
+                    if (this.isRecording) {
+                        this.mediaRecorder = new MediaRecorder(this.audioStream, {
+                            mimeType: 'audio/webm;codecs=opus'
+                        });
+
+                        let audioChunks = [];
+
+                        this.mediaRecorder.ondataavailable = async (event) => {
+                            if (event.data.size > 0) audioChunks.push(event.data);
+                        };
+
+                        this.mediaRecorder.onstop = async () => {
+                            if (audioChunks.length > 0) {
+                                await this.saveChunk(new Blob(audioChunks, { type: 'audio/webm' }));
+                                audioChunks = [];
+                            }
+                        };
+
+                        this.mediaRecorder.start();
+                    }
+                }, 100);
+            }
+        }
+
+        async saveChunk(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'chunk.webm');
+
+                const route = formatRoute(this.voiceRoutes.saveChunk, { sessionId: this.sessionId });
+                const response = await fetchWithAuth(`${this.voiceServerUrl}${route}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.status === 401) {
+                    this.handleAuthError();
+                    return;
+                }
+                if (response.ok) {
+                    const data = await response.json();
+                    this.totalChunks = data.total_chunks;
+                    this.updateChunkInfo();
+                    this.startProgressPolling();
+                }
+            } catch (err) {
+                this.showError('Error saving chunk: ' + err.message);
+            }
+        }
+
+        updateUI() {
+            if (this.isRecording) {
+                this.recordButton.classList.add('recording');
+                this.buttonText.textContent = 'Stop Recording';
+                this.status.classList.add('recording');
+                this.status.innerHTML =
+                    '<div><strong>Recording...</strong></div><div>Saving chunks every 30 seconds</div>';
+                this.timer.style.display = 'block';
+                document.getElementById('chunkInfo').style.display = 'grid';
+                document.getElementById('sessionInfo').classList.add('show');
+            } else {
+                this.recordButton.classList.remove('recording');
+                this.buttonText.textContent = 'Start Recording';
+                this.status.classList.remove('recording');
+                this.status.innerHTML =
+                    '<div><strong>Recording Stopped</strong></div><div>All chunks saved</div>';
+                this.timer.style.display = 'none';
+            }
+
+            if (this.sessionId) {
+                document.getElementById('sessionId').textContent = this.sessionId;
+            }
+        }
+
+        startTimers() {
+            this.timerInterval = setInterval(() => {
+                if (this.isRecording) {
+                    const elapsed = Date.now() - this.startTime;
+                    const totalSeconds = Math.floor(elapsed / 1000);
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = totalSeconds % 60;
+                    this.timer.textContent =
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    this.updateChunkInfo();
+                }
+            }, 1000);
+        }
+
+        updateChunkInfo() {
+            document.getElementById('totalChunks').textContent = this.totalChunks;
+            if (this.startTime) {
+                const elapsed = Date.now() - this.startTime;
+                const totalSeconds = Math.floor(elapsed / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                document.getElementById('recordingTime').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+                document.getElementById('recordingTime').textContent = '--:--';
+            }
+        }
+
+        showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+            setTimeout(() => error.style.display = 'none', 5000);
+        }
+
+        setUploadStatus(message, isError = false) {
+            if (!this.uploadStatus) return;
+            this.uploadStatus.textContent = message;
+            if (message) {
+                this.uploadStatus.classList.toggle('error', isError);
+            } else {
+                this.uploadStatus.classList.remove('error');
+            }
+        }
+
+        clearProgressOutput() {
+            if (!this.transcriptOutput) return;
+            this.transcriptOutput.innerHTML = `
+                <div class="placeholder">
+                    سيتم عرض النص الكامل هنا بمجرد بدء المعالجة الصوتية أو رفع ملف صوتي.
+                </div>
+            `;
+        }
+
+        startProgressPolling() {
+            if (!this.sessionId) return;
+            this.stopProgressPolling();
+            this.fetchTranscriptionProgress();
+            this.progressInterval = setInterval(() => this.fetchTranscriptionProgress(), 4000);
+        }
+
+        stopProgressPolling() {
+            if (this.progressInterval) {
+                clearInterval(this.progressInterval);
+                this.progressInterval = null;
+            }
+        }
+
+        async fetchTranscriptionProgress() {
+            if (!this.sessionId) return;
+            try {
+                const route = formatRoute(this.transcriptionRoutes.monitorProgress, { sessionId: this.sessionId });
+                const response = await fetchWithAuth(`${this.transcriptionServerUrl}${route}`);
+                if (response.status === 401) {
+                    this.handleAuthError();
+                    return;
+                }
+                if (!response.ok) return;
+                const data = await response.json();
+                this.updateTranscriptOutput(data);
+                this.fetchQwenAnalysis();
+            } catch (err) {
+                console.error('Failed to fetch transcription progress:', err);
+            }
+        }
+
+        async fetchQwenAnalysis() {
+            if (!this.sessionId) return;
+            if (this.qwenEditMode) return;
+            try {
+                const route = formatRoute(this.transcriptionRoutes.qwenStatus, { sessionId: this.sessionId });
+                const response = await fetchWithAuth(`${this.transcriptionServerUrl}${route}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                this.updateQwenOutput(data);
+
+                if (data.full_transcript && (!data.qwen_status || data.qwen_status === 'not_started')) {
+                    await this.triggerQwenAnalysis(data.full_transcript);
+                }
+            } catch (err) {
+                console.error('Failed to fetch Qwen analysis:', err);
+            }
+        }
+
+        async triggerQwenAnalysis(transcript) {
+            try {
+                const route = this.qwenRoutes.generate;
+                const response = await fetchWithAuth(`${this.qwenServerUrl}${route}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: transcript,
+                        session_id: this.sessionId
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to trigger Qwen analysis');
+                }
+            } catch (err) {
+                console.error('Error triggering Qwen analysis:', err);
+            }
+        }
+
+        updateQwenOutput(data) {
+            const qwenSection = document.getElementById('qwenAnalysisSection');
+            const qwenContent = document.getElementById('qwenAnalysisContent');
+            if (!qwenSection || !qwenContent) return;
+            if (this.qwenEditMode) return;
+
+            const status = data.qwen_status || 'not_started';
+
+            if (status === 'completed' && data.qwen_analysis) {
+                qwenSection.style.display = 'block';
+                qwenContent.innerHTML = `
+                    <div id="qwenTextBlock"
+                         style="background: #f0f7ff; padding: 20px; border-radius: 10px; white-space: pre-wrap; direction: rtl; text-align: right;">
+                        ${this.escapeHtml(data.qwen_analysis)}
+                    </div>
+                    <div style="text-align: center; margin-top: 15px; color: #28a745; font-weight: bold;">
+                        ✅ تم التحليل بنجاح
+                    </div>
+                `;
+                this.setQwenEditMode(false);
+            } else if (status === 'failed') {
+                qwenSection.style.display = 'block';
+                qwenContent.innerHTML = `
+                    <div style="background: #ffe0e0; padding: 20px; border-radius: 10px; color: #c0392b; direction: rtl; text-align: right;">
+                        ❌ فشل التحليل: ${this.escapeHtml(data.qwen_error || 'خطأ غير معروف')}
+                    </div>
+                `;
+                this.setQwenEditMode(false);
+            } else if (status === 'processing' || (data.full_transcript && status === 'not_started')) {
+                qwenSection.style.display = 'block';
+                qwenContent.innerHTML = `
+                    <div style="text-align: center; padding: 30px;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">⏳</div>
+                        <div style="color: #667eea; font-weight: bold;">جاري معالجة النص الطبي بواسطة الذكاء الاصطناعي...</div>
+                    </div>
+                `;
+                this.setQwenEditMode(false);
+            } else {
+                qwenSection.style.display = 'none';
+            }
+        }
+
+        setQwenEditMode(enabled) {
+            this.qwenEditMode = enabled;
+            const editBtn = document.getElementById('editMedicalInfoBtn');
+            const saveBtn = document.getElementById('saveMedicalInfoBtn');
+            const qwenTextBlock = document.getElementById('qwenTextBlock');
+
+            if (qwenTextBlock) {
+                qwenTextBlock.contentEditable = enabled ? 'true' : 'false';
+                qwenTextBlock.style.outline = enabled ? '1px dashed #667eea' : 'none';
+                qwenTextBlock.style.background = enabled ? '#ffffff' : '#f0f7ff';
+            }
+            if (editBtn) {
+                editBtn.textContent = enabled ? 'إلغاء التعديل' : 'تعديل المعلومات الطبية';
+            }
+            if (saveBtn) {
+                saveBtn.disabled = !enabled;
+            }
+        }
+
+        getCurrentMedicalText() {
+            const qwenTextBlock = document.getElementById('qwenTextBlock');
+            if (!qwenTextBlock) return '';
+            return (qwenTextBlock.innerText || '').trim();
+        }
+
+        async saveEditedMedicalInfo() {
+            if (!this.sessionId) {
+                this.showError('لا توجد جلسة حالية لحفظ البيانات الطبية.');
+                return;
+            }
+            const text = this.getCurrentMedicalText();
+            if (!text) {
+                this.showError('لا توجد معلومات طبية للحفظ.');
+                return;
+            }
+
+            const payload = { analysis: text };
+
+            try {
+                const route = `/update-qwen-analysis/${encodeURIComponent(this.sessionId)}`;
+                const resp = await fetchWithAuth(
+                    `${this.transcriptionServerUrl}${route}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    }
+                );
+                if (!resp.ok) {
+                    const t = await resp.text();
+                    throw new Error(t || 'Failed to update medical info.');
+                }
+                this.setQwenEditMode(false);
+                await this.fetchQwenAnalysis();
+                alert('تم تحديث المعلومات الطبية وحفظها بنجاح.');
+            } catch (err) {
+                console.error('Update medical info failed:', err);
+                this.showError('فشل حفظ المعلومات الطبية: ' + (err.message || err));
+            }
+        }
+
+        updateTranscriptOutput(data) {
+            if (!this.transcriptOutput) return;
+
+            if (!data || !data.results || data.results.length === 0) {
+                this.clearProgressOutput();
+                return;
+            }
+
+            const finalText = (data.full_transcript_rtl || '').trim();
+            let html = '';
+
+            if (finalText) {
+                html += `<div class="transcript-final">${this.escapeHtml(finalText)}</div>`;
+            }
+
+            html += '<div class="transcript-chunks">';
+            data.results.forEach((chunk) => {
+                const processingTime = chunk.processing_time ? `${chunk.processing_time.toFixed(2)}s` : '--';
+                const completedAt = chunk.completed_at ? new Date(chunk.completed_at).toLocaleTimeString() : '';
+                const metaParts = [
+                    `Chunk ${chunk.chunk_number}`,
+                    chunk.filename,
+                    `⏱ ${processingTime}`,
+                    completedAt ? `✔ ${completedAt}` : null
+                ].filter(Boolean);
+
+                html += `
+                    <div class="chunk-line">
+                        <span class="chunk-meta">${metaParts.join(' • ')}</span>
+                        <div class="chunk-content">${this.escapeHtml(chunk.text || chunk.text_raw || '')}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            this.transcriptOutput.innerHTML = html;
+        }
+
+        escapeHtml(value) {
+            if (!value) return '';
+            return value
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        async handleFileUpload() {
+            if (!this.isAuthenticated()) {
+                this.showError('You must login before uploading.');
+                return;
+            }
+            if (!this.uploadInput || !this.uploadInput.files.length) {
+                this.setUploadStatus('Please select an audio file to upload.', true);
+                return;
+            }
+            if (this.isRecording) {
+                this.showError('Stop the live recording before uploading a file.');
+                return;
+            }
+            if (this.activeMode !== 'upload') {
+                this.setMode('upload');
+            }
+
+            // reset analysis UI for uploaded session
+            this.setQwenEditMode(false);
+            const qwenSection = document.getElementById('qwenAnalysisSection');
+            const qwenContent = document.getElementById('qwenAnalysisContent');
+            if (qwenContent) {
+                qwenContent.innerHTML = '<div class="placeholder">جاري معالجة النص الطبي...</div>';
+            }
+            if (qwenSection) qwenSection.style.display = 'none';
+
+            const file = this.uploadInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            this.setUploadStatus('Uploading file...', false);
+            if (this.uploadButton) this.uploadButton.disabled = true;
+            this.isUploading = true;
+
+            try {
+                const route = this.voiceRoutes.processUpload;
+                const response = await fetchWithAuth(`${this.voiceServerUrl}${route}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.status === 401) {
+                    this.handleAuthError();
+                    return;
+                }
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Upload failed');
+                }
+
+                const data = await response.json();
+                this.sessionId = data.session_id;
+                this.totalChunks = data.total_chunks || 1;
+                this.isRecording = false;
+                this.startTime = null;
+
+                document.getElementById('totalChunks').textContent = this.totalChunks;
+                document.getElementById('chunkInfo').style.display = 'grid';
+                document.getElementById('sessionInfo').classList.add('show');
+                document.getElementById('sessionId').textContent = this.sessionId;
+                document.getElementById('recordingTime').textContent = '--:--';
+
+                this.status.classList.remove('recording');
+                this.status.innerHTML =
+                    '<div><strong>Processing uploaded audio</strong></div><div>Awaiting transcription results...</div>';
+
+                this.clearProgressOutput();
+                this.setUploadStatus('Processing uploaded audio...', false);
+                this.startProgressPolling();
+
+                if (this.uploadInput) this.uploadInput.value = '';
+            } catch (err) {
+                console.error('Upload failed:', err);
+                this.setUploadStatus('Upload failed: ' + err.message, true);
+            } finally {
+                this.isUploading = false;
+                if (this.uploadButton) this.uploadButton.disabled = false;
+            }
+        }
+    }
+
+    async function bootstrapRecorder() {
+        const config = await loadServerConfig();
+        const servers = {
+            voice: resolveServer('voiceServer', normalizeBaseUrl(config?.servers?.voice?.baseUrl)),
+            transcription: resolveServer('transcriptionServer', normalizeBaseUrl(config?.servers?.transcription?.baseUrl)),
+            qwen: resolveServer('qwenServer', normalizeBaseUrl(config?.servers?.qwen?.baseUrl))
+        };
+
+        localStorage.setItem(VOICE_BASE_KEY, servers.voice);
+        localStorage.setItem(TRANS_BASE_KEY, servers.transcription);
+        localStorage.setItem(QWEN_BASE_KEY, servers.qwen);
+
+        const pipelineConfig = {
+            servers,
+            routes: mergeRoutes(config?.routes)
+        };
+
+        window.pipelineConfig = pipelineConfig;
+        const recorder = new VoiceRecorder(pipelineConfig);
+
+        const loginBtn = document.getElementById('authLoginBtn');
+        const logoutBtn = document.getElementById('authLogoutBtn');
+        const uInput = document.getElementById('authUsername');
+        const pInput = document.getElementById('authPassword');
+
+        if (loginBtn && uInput && pInput) {
+            loginBtn.addEventListener('click', async () => {
+                const username = uInput.value.trim();
+                const password = pInput.value;
+                if (!username || !password) {
+                    alert('Please enter username and password.');
+                    return;
+                }
+                try {
+                    const form = new FormData();
+                    form.append('username', username);
+                    form.append('password', password);
+
+                    const resp = await fetch(`${servers.voice}/auth/login`, {
+                        method: 'POST',
+                        body: form
+                    });
+                    if (!resp.ok) {
+                        alert('Login failed');
+                        return;
+                    }
+                    const data = await resp.json();
+                    setAccessToken(data.access_token);
+                    recorder.updateAuthDependentUI();
+                } catch (err) {
+                    console.error('Login error:', err);
+                    alert('Login error: ' + err.message);
+                }
+            });
+        }
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                setAccessToken(null);
+                recorder.updateAuthDependentUI();
+            });
+        }
+
+        const editBtn = document.getElementById('editMedicalInfoBtn');
+        const saveBtn = document.getElementById('saveMedicalInfoBtn');
+
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                recorder.setQwenEditMode(!recorder.qwenEditMode);
+            });
+        }
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                recorder.saveEditedMedicalInfo();
+            });
+        }
+
+        const swaggerBtn = document.getElementById('swaggerButton');
+        if (swaggerBtn && servers.voice) {
+            swaggerBtn.addEventListener('click', () => {
+                const docsUrl = servers.voice.replace(/\/+$/, '') + '/docs';
+                window.open(docsUrl, '_blank');
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        bootstrapRecorder().catch(handleBootstrapError);
+    });
+    </script>
+    <!-- In Postman/Swagger you will use:
+    //   POST http://192.168.2.46:8000/api/pipeline/run
+    //   Body: form-data -> key `file` (type File) -->
+</body>
+</html>
+
+
